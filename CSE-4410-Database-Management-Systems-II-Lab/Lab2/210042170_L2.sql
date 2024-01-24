@@ -1,0 +1,120 @@
+--1. Create two tablespaces tbs1 and tbs2.
+
+CREATE TABLESPACE TBS1 DATAFILE 'tbs1.dat' SIZE 1M;
+
+CREATE TABLESPACE TBS2 DATAFILE 'tbs2.dat' SIZE 1M;
+
+--2. Set quota for a single user on both tablespaces.
+
+CREATE USER NIRJHAR IDENTIFIED BY 1234;
+
+ALTER USER NIRJHAR QUOTA 1M ON TBS1;
+
+ALTER USER NIRJHAR QUOTA 1M ON TBS2;
+
+--3. Create two tables student(name, ID, fk[dept_ID]) and department(ID, name) in tbs1.
+
+DROP TABLE STUDENT CASCADE CONSTRAINTS;
+
+CREATE TABLE STUDENT(
+    NAME VARCHAR(20),
+    ID INT,
+    DEPT_ID INT,
+    CONSTRAINT STUDENT_PK PRIMARY KEY(ID),
+    CONSTRAINT FK_DEPT_ID FOREIGN KEY(DEPT_ID) REFERENCES DEPARTMENT(ID)
+) TABLESPACE TBS1;
+
+DROP TABLE DEPARTMENT CASCADE CONSTRAINTS;
+
+CREATE TABLE DEPARTMENT(
+    ID INT,
+    NAME VARCHAR(20),
+    CONSTRAINT DEPARTMENT_PK PRIMARY KEY(ID)
+)TABLESPACE TBS1;
+
+--4. Create another table course(course_code, name, credit, fk[offered_by_dept_ID]) in tbs2.
+
+DROP TABLE COURSE CASCADE CONSTRAINTS;
+
+CREATE TABLE COURSE(
+    COURSE_CODE VARCHAR(20),
+    NAME VARCHAR(20),
+    CREDIT INT,
+    OFFERED_BY_DEPT_ID INT,
+    CONSTRAINT COURSE_PK PRIMARY KEY(COURSE_CODE),
+    CONSTRAINT FK_DEPT_ID FOREIGN KEY(OFFERED_BY_DEPT_ID) REFERENCES DEPARTMENT(ID)
+) TABLESPACE TBS2;
+
+--5. Insert a large amount of data in the student table and course table.
+
+@"E:\CSE-4410-Database-Management-Systems-II-Lab\Lab2\data.sql"
+
+--6. List the title and offering department of each course.
+
+SELECT
+    D.NAME,
+    C.NAME
+FROM
+    COURSE     C
+    LEFT JOIN DEPARTMENT D
+    ON C.OFFERED_BY_DEPT_ID = D.ID;
+
+--7. Check the free space of the tablespaces.
+
+SELECT
+    TABLESPACE_NAME,
+    BYTES/1024/1024 MB
+FROM
+    DBA_FREE_SPACE
+WHERE
+    TABLESPACE_NAME='TBS1';
+
+SELECT
+    TABLESPACE_NAME,
+    BYTES/1024/1024 MB
+FROM
+    DBA_FREE_SPACE
+WHERE
+    TABLESPACE_NAME='TBS2';
+
+--8. Extend tbs1 by adding extra data files.
+
+ALTER TABLESPACE TBS1 ADD DATAFILE 'tbs1_2.dat' SIZE 1M;
+
+--9. Extend tbs2 by resizing data files.
+
+ALTER DATABASE DATAFILE 'tbs2_data.dbf' RESIZE 15M;
+
+--10. Check the size of the tablespaces.
+
+SELECT
+    TABLESPACE_NAME,
+    SUM(BYTES)/1024/1024 MB AS "Size in MB"
+FROM
+    DBA_DATA_FILES
+WHERE
+    TABLESPACE_NAME='TBS1';
+
+GROUP_BY TABLESPACE_NAME;
+
+SELECT
+    TABLESPACE_NAME,
+    SUM(BYTES)/1024/1024 MB AS "Size in MB"
+FROM
+    DBA_DATA_FILES
+WHERE
+    TABLESPACE_NAME='TBS2';
+
+GROUP_BY TABLESPACE_NAME;
+
+--11. Set tbs1 to offline and show that the data cannot be accessed.
+
+ALTER TABLESPACE TBS1 OFFLINE;
+
+--12. Delete tablespace tbs1 including the data files.
+
+DROP TABLESPACE TBS1 INCLUDING CONTENTS AND DATAFILES CASCADE CONSTRAINTS;
+
+--13. Delete tablespace tbs2 excluding the data files.
+
+DROP TABLESPACE TBS2 INCLUDING CONTENTS AND KEEP DATAFILES CASCADE CONSTRAINTS;
